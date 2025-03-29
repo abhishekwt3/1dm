@@ -1,0 +1,60 @@
+{
+    "locations": [
+      {
+        "id": "1",
+        "name": "Downtown Mumbai",
+        "address": "123 Marine Drive, Mumbai 400001",
+        "phone": "+91 98765 43210",
+        "hours": "7:00 AM - 9:00 PM"
+      },
+      {
+        "id": "2",
+        "name": "Bandra West",
+        "address": "45 Linking Road, Bandra, Mumbai 400050",
+        "phone": "+91 98765 43211",
+        "hours": "7:30 AM - 10:00 PM"
+      },
+      {
+        "id": "3",
+        "name": "Powai",
+        "address": "22 Hiranandani Gardens, Powai, Mumbai 400076",
+        "phone": "+91 98765 43212",
+        "hours": "7:00 AM - 9:30 PM"
+      },
+      {
+        "id": "4",
+        "name": "Andheri East",
+        "address": "56 MIDC, Andheri East, Mumbai 400093",
+        "phone": "+91 98765 43213",
+        "hours": "8:00 AM - 8:00 PM"
+      },
+      {
+        "id": "5",
+        "name": "South Delhi",
+        "address": "78 Greater Kailash, New Delhi 110048",
+        "phone": "+91 98765 43214",
+        "hours": "7:30 AM - 9:00 PM"
+      },
+      {
+        "id": "6",
+        "name": "MG Road Bangalore",
+        "address": "34 MG Road, Bangalore 560001",
+        "phone": "+91 98765 43215",
+        "hours": "7:00 AM - 10:00 PM"
+      },
+      {
+        "id": "7",
+        "name": "Park Street Kolkata",
+        "address": "12 Park Street, Kolkata 700016",
+        "phone": "+91 98765 43216",
+        "hours": "8:00 AM - 9:00 PM"
+      },
+      {
+        "id": "8",
+        "name": "Jubilee Hills Hyderabad",
+        "address": "89 Jubilee Hills, Hyderabad 500033",
+        "phone": "+91 98765 43217",
+        "hours": "7:30 AM - 9:30 PM"
+      }
+    ]
+  }
