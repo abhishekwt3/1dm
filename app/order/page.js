@@ -1,398 +1,509 @@
 'use client';
 
-import { useState, useEffect } from 'react'
-import { useRouter }   from 'next/navigation'
-import Head from 'next/head'
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import ProductCard from '../components/ProductCard';
+import OrderItem from '../components/OrderItem';
+import { getCurrentUsername, getAuthHeaders } from '../utils/authHelpers';
 
-export default function Order() {
-  const router = useRouter()
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [user, setUser] = useState(null)
-  const [coffees, setCoffees] = useState([
-    { id: 1, name: 'Espresso', price: 3.50, description: 'Strong and rich' },
-    { id: 2, name: 'Cappuccino', price: 4.50, description: 'Creamy with perfect balance' },
-    { id: 3, name: 'Latte', price: 4.75, description: 'Smooth and mild' },
-    { id: 4, name: 'Americano', price: 3.75, description: 'Bold and robust' },
-  ])
-  const [cart, setCart] = useState([])
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' })
-  const [isLoading, setIsLoading] = useState(false)
-  const [orderHistory, setOrderHistory] = useState([])
-  const [showHistory, setShowHistory] = useState(false)
+export default function Orders() {
+  const router = useRouter();
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [cart, setCart] = useState([]);
+  const [orderHistory, setOrderHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [locationInput, setLocationInput] = useState('');
+  const [deliveryNotes, setDeliveryNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
   
-  // Check if user is logged in
   useEffect(() => {
-    // Check local storage for user data
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      const parsedUser = JSON.parse(userData)
-      setUser(parsedUser)
-      setIsLoggedIn(true)
-      
-      // Fetch order history for logged in user
-      fetchOrderHistory(parsedUser.id)
+    // Check authentication
+    const authToken = localStorage.getItem('auth_token');
+    if (authToken) {
+      setIsAuthenticated(true);
     }
-  }, [])
-  
-  const fetchOrderHistory = async (userId) => {
-    try {
-      // In a real app, you'd include proper auth tokens
-      const response = await fetch(`/api/order?userId=${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+
+    // Fetch products
+    fetch('/api/products')
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to fetch products');
         }
+        return res.json();
       })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setOrderHistory(data.orders)
-      }
-    } catch (error) {
-      console.error('Error fetching order history:', error)
-    }
-  }
-  
-  const handleLogin = async (e) => {
-    e.preventDefault()
-    setIsLoading(true)
-    
-    try {
-      // Mock login - in a real app, this would validate against a backend
-      if (loginForm.email && loginForm.password) {
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 500))
+      .then(data => {
+        setProducts(data);
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error("Failed to fetch products:", error);
+        setLoading(false);
         
-        const mockUser = { 
-          id: `user_${Date.now()}`, 
-          name: loginForm.email.split('@')[0], 
-          email: loginForm.email 
+        // For development, provide mock data if API fails
+        if (process.env.NODE_ENV === 'development') {
+          const mockProducts = [
+            {
+              id: '1',
+              product_name: 'Espresso',
+              description: 'Strong and rich espresso',
+              price: 120,
+              available: true,
+              image: null,
+              category: 'coffee'
+            },
+            {
+              id: '2',
+              product_name: 'Cappuccino',
+              description: 'Espresso with steamed milk and foam',
+              price: 150,
+              available: true,
+              image: null,
+              category: 'coffee'
+            },
+            {
+              id: '3',
+              product_name: 'Latte',
+              description: 'Espresso with plenty of steamed milk',
+              price: 150,
+              available: true,
+              image: null,
+              category: 'coffee'
+            },
+            {
+              id: '4',
+              product_name: 'Americano',
+              description: 'Espresso diluted with hot water',
+              price: 130,
+              available: true,
+              image: null,
+              category: 'coffee'
+            }
+          ];
+          setProducts(mockProducts);
         }
-        
-        // Mock token
-        const mockToken = `mock_token_${Date.now()}`
-        
-        // Save to local storage
-        localStorage.setItem('user', JSON.stringify(mockUser))
-        localStorage.setItem('token', mockToken)
-        
-        setUser(mockUser)
-        setIsLoggedIn(true)
-      }
-    } catch (error) {
-      console.error('Login error:', error)
-      alert('Login failed. Please try again.')
-    } finally {
-      setIsLoading(false)
+      });
+
+    if (isAuthenticated) {
+      fetchOrderHistory();
     }
-  }
+  }, [isAuthenticated]);
   
-  const handleLogout = () => {
-    localStorage.removeItem('user')
-    localStorage.removeItem('token')
-    setUser(null)
-    setIsLoggedIn(false)
-    setCart([])
-    setOrderHistory([])
-  }
+  const fetchOrderHistory = async () => {
+    setLoading(true);
+    try {
+      const userName = getCurrentUsername();
+      const response = await fetch(`/api/orders?user_name=${encodeURIComponent(userName)}`, {
+        headers: getAuthHeaders()
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch order history');
+      }
+      
+      const data = await response.json();
+      setOrderHistory(data);
+    } catch (error) {
+      console.error("Failed to fetch order history:", error);
+      
+      // For development, provide mock data if API fails
+      if (process.env.NODE_ENV === 'development') {
+        setOrderHistory([
+          {
+            id: 'order1',
+            order_date: new Date().toISOString(),
+            status: 'COMPLETED',
+            location: 'Downtown Mumbai',
+            price: 450,
+            order_items: [
+              { 
+                id: 'item1', 
+                product: { 
+                  product_name: 'Espresso' 
+                }, 
+                quantity: 2, 
+                price: 240 
+              },
+              { 
+                id: 'item2', 
+                product: { 
+                  product_name: 'Cappuccino' 
+                }, 
+                quantity: 1, 
+                price: 150 
+              }
+            ]
+          }
+        ]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
   
-  const addToCart = (coffee) => {
-    setCart([...cart, coffee])
-  }
+  const handleAddToCart = (product) => {
+    // Check if user is logged in
+    if (!isAuthenticated) {
+      // Redirect to login page
+      router.push('/account');
+      return;
+    }
+    
+    // Check if product is already in cart
+    const existingItem = cart.find(item => item.product_id === product.id);
+    
+    if (existingItem) {
+      // Update quantity
+      setCart(cart.map(item => 
+        item.product_id === product.id 
+          ? { ...item, quantity: item.quantity + 1 } 
+          : item
+      ));
+    } else {
+      // Add new item
+      setCart([...cart, {
+        product_id: product.id,
+        product_name: product.product_name,
+        price: product.price,
+        quantity: 1
+      }]);
+    }
+  };
   
-  const removeFromCart = (index) => {
-    const newCart = [...cart]
-    newCart.splice(index, 1)
-    setCart(newCart)
-  }
+  const handleRemoveFromCart = (productId) => {
+    setCart(cart.filter(item => item.product_id !== productId));
+  };
+  
+  const handleUpdateQuantity = (productId, newQuantity) => {
+    if (newQuantity < 1) {
+      handleRemoveFromCart(productId);
+      return;
+    }
+    
+    setCart(cart.map(item => 
+      item.product_id === productId 
+        ? { ...item, quantity: newQuantity } 
+        : item
+    ));
+  };
   
   const getTotalPrice = () => {
-    return cart.reduce((total, item) => total + item.price, 0).toFixed(2)
-  }
+    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
   
-  const placeOrder = async () => {
-    if (cart.length === 0) return
+  const handleSubmitOrder = async () => {
+    if (cart.length === 0) return;
+    if (!locationInput) {
+      setSubmitError("Please enter a delivery location");
+      return;
+    }
     
-    setIsLoading(true)
+    setSubmitting(true);
+    setSubmitError(null);
+    
+    const userName = getCurrentUsername();
+    
+    const orderData = {
+      user_name: userName,
+      location: locationInput,
+      payment_method: paymentMethod,
+      delivery_notes: deliveryNotes,
+      items: cart,
+      total_price: getTotalPrice()
+    };
+    
+    console.log("Submitting order with data:", orderData);
     
     try {
-      // Prepare order data
-      const orderData = {
-        userId: user.id,
-        items: cart.map(item => ({
-          productId: item.id,
-          name: item.name,
-          price: item.price
-        })),
-        totalAmount: parseFloat(getTotalPrice())
-      }
-      
-      // Send order to API
-      const response = await fetch('/api/order', {
+      const response = await fetch('/api/orders', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(orderData)
-      })
+      });
       
-      if (response.ok) {
-        const result = await response.json()
-        alert(`Order placed successfully! Order ID: ${result.order.id}`)
-        setCart([])
-        
-        // Refresh order history
-        fetchOrderHistory(user.id)
-      } else {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to place order')
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || errorData.error || 'Failed to create order');
       }
+      
+      const data = await response.json();
+      setSubmitSuccess(true);
+      setCart([]);
+      setLocationInput('');
+      setDeliveryNotes('');
+      
+      // Refresh order history
+      fetchOrderHistory();
+      
+      // Reset after 3 seconds
+      setTimeout(() => {
+        setSubmitSuccess(false);
+      }, 3000);
     } catch (error) {
-      console.error('Order error:', error)
-      alert(`Failed to place order: ${error.message}`)
+      console.error("Order error:", error);
+      setSubmitError(error.message || 'Failed to create order');
     } finally {
-      setIsLoading(false)
+      setSubmitting(false);
     }
-  }
+  };
   
-  const cancelOrder = async (orderId) => {
-    if (!confirm('Are you sure you want to cancel this order?')) return
-    
-    try {
-      const response = await fetch(`/api/order?orderId=${orderId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
-      
-      if (response.ok) {
-        alert('Order cancelled successfully')
-        // Refresh order history
-        fetchOrderHistory(user.id)
-      } else {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to cancel order')
-      }
-    } catch (error) {
-      console.error('Cancel error:', error)
-      alert(`Failed to cancel order: ${error.message}`)
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
+      case 'PROCESSING': return 'bg-blue-100 text-blue-800';
+      case 'COMPLETED': return 'bg-green-100 text-green-800';
+      case 'CANCELLED': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
-  }
-  
-  // Format date for display
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString()
-  }
+  };
   
   return (
-    <>
-      <Head>
-        <title>Order - 1dm Coffee</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-      </Head>
+    <div className="p-4 pb-20">
+      <h1 className="text-2xl font-bold mb-4">Order Coffee</h1>
       
-      <div className="min-h-screen bg-amber-50">
-        {/* Header */}
-        <header className="bg-amber-600 p-4 text-white">
-          <div className="container mx-auto flex justify-between items-center">
-            <div className="flex items-center" onClick={() => router.push('/')} style={{cursor: 'pointer'}}>
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center mr-3">
-                <span className="text-amber-600 text-lg font-bold">1dm</span>
-              </div>
-              <h1 className="text-xl font-bold">1dm Coffee</h1>
+      {/* Success message */}
+      {submitSuccess && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+          <p className="font-bold">Success!</p>
+          <p>Your order has been placed.</p>
+        </div>
+      )}
+      
+      {/* Error message */}
+      {submitError && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <p className="font-bold">Error</p>
+          <p>{submitError}</p>
+        </div>
+      )}
+      
+      <div className="mb-4 flex justify-between items-center">
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded"
+        >
+          {showHistory ? 'View Menu' : 'Order History'}
+        </button>
+        
+        {cart.length > 0 && !showHistory && (
+          <div className="text-right">
+            <span className="font-bold">Cart: </span>
+            <span>{cart.length} {cart.length === 1 ? 'item' : 'items'}</span>
+            <span className="ml-2 font-bold">₹{getTotalPrice().toFixed(2)}</span>
+          </div>
+        )}
+      </div>
+      
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div>
+        </div>
+      ) : showHistory ? (
+        /* Order History View */
+        <div>
+          <h2 className="text-xl font-bold mb-4">Your Order History</h2>
+          
+          {orderHistory.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <p>You do not have any orders yet.</p>
             </div>
+          ) : (
+            <div className="space-y-4">
+              {orderHistory.map(order => (
+                <div key={order.id} className="bg-white rounded-lg shadow p-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="text-sm text-gray-500">Order #{order.id.slice(-6)}</div>
+                      <div className="font-medium mt-1">{new Date(order.order_date).toLocaleDateString()}</div>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                      {order.status}
+                    </span>
+                  </div>
+                  
+                  <div className="border-t border-gray-100 mt-3 pt-3">
+                    <div className="text-sm">
+                      <div className="flex justify-between">
+                        <span>Location:</span>
+                        <span className="font-medium">{order.location}</span>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span>Items:</span>
+                        <span className="font-medium">
+                          {order.order_items.map(item => 
+                            `${item.product.product_name} (${item.quantity})`
+                          ).join(', ')}
+                        </span>
+                      </div>
+                      {order.payment_method && (
+                        <div className="flex justify-between mt-1">
+                          <span>Payment Method:</span>
+                          <span className="font-medium">
+                            {order.payment_method === 'cod' ? 'Cash on Delivery' : 
+                             order.payment_method === 'online' ? 'Online Payment' : 
+                             order.payment_method === 'wallet' ? '1dm Wallet' : 
+                             order.payment_method}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between mt-1">
+                        <span>Total:</span>
+                        <span className="font-medium">₹{order.price.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Menu and Cart View */
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Products List */}
+          <div className="md:col-span-2">
+            <h2 className="text-xl font-bold mb-4">Menu</h2>
             
-            {isLoggedIn && (
-              <div className="flex items-center space-x-4">
-                <span>Welcome, {user.name}</span>
-                <button 
-                  onClick={handleLogout}
-                  className="bg-amber-700 hover:bg-amber-800 px-3 py-1 rounded"
-                >
-                  Logout
-                </button>
+            {products.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No products available at the moment.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {products.filter(p => p.available).map(product => (
+                  <ProductCard 
+                    key={product.id} 
+                    product={product} 
+                    onAddToCart={() => handleAddToCart(product)} 
+                    currencySymbol="₹" 
+                  />
+                ))}
               </div>
             )}
           </div>
-        </header>
-        
-        <main className="container mx-auto p-4">
-          {!isLoggedIn ? (
-            <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-2xl font-bold text-amber-800 mb-4">Login to Order</h2>
+          
+          {/* Cart */}
+          <div>
+            <div className="bg-white rounded-lg shadow p-4 sticky top-4">
+              <h2 className="text-xl font-bold mb-4">Your Cart</h2>
               
-              <form onSubmit={handleLogin}>
-                <div className="mb-4">
-                  <label className="block text-amber-800 mb-2" htmlFor="email">Email</label>
-                  <input 
-                    type="email" 
-                    id="email"
-                    value={loginForm.email}
-                    onChange={(e) => setLoginForm({...loginForm, email: e.target.value})}
-                    className="w-full p-2 border border-amber-300 rounded"
-                    required
-                  />
-                </div>
-                
-                <div className="mb-4">
-                  <label className="block text-amber-800 mb-2" htmlFor="password">Password</label>
-                  <input 
-                    type="password" 
-                    id="password"
-                    value={loginForm.password}
-                    onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
-                    className="w-full p-2 border border-amber-300 rounded"
-                    required
-                  />
-                </div>
-                
-                <button 
-                  type="submit" 
-                  disabled={isLoading}
-                  className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2 rounded font-bold disabled:opacity-70"
-                >
-                  {isLoading ? 'Logging in...' : 'Login'}
-                </button>
-              </form>
-            </div>
-          ) : (
-            <>
-              <div className="mb-6 flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-amber-800">Coffee Shop</h2>
-                <button
-                  onClick={() => setShowHistory(!showHistory)}
-                  className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded"
-                >
-                  {showHistory ? 'Show Menu' : 'Order History'}
-                </button>
-              </div>
-              
-              {showHistory ? (
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                  <h3 className="text-xl font-bold text-amber-800 mb-4">Your Order History</h3>
-                  
-                  {orderHistory.length === 0 ? (
-                    <p className="text-gray-500">You haven't placed any orders yet.</p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full">
-                        <thead>
-                          <tr className="bg-amber-100">
-                            <th className="py-2 px-4 text-left">Order ID</th>
-                            <th className="py-2 px-4 text-left">Date</th>
-                            <th className="py-2 px-4 text-left">Items</th>
-                            <th className="py-2 px-4 text-right">Total</th>
-                            <th className="py-2 px-4 text-center">Status</th>
-                            <th className="py-2 px-4 text-center">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {orderHistory.map((order) => (
-                            <tr key={order.id} className="border-b border-amber-100">
-                              <td className="py-2 px-4">{order.id.slice(-6)}</td>
-                              <td className="py-2 px-4">{formatDate(order.createdAt)}</td>
-                              <td className="py-2 px-4">
-                                {order.items.map(item => item.name).join(', ')}
-                              </td>
-                              <td className="py-2 px-4 text-right">${order.totalAmount.toFixed(2)}</td>
-                              <td className="py-2 px-4 text-center">
-                                <span className={`px-2 py-1 rounded text-xs ${
-                                  order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                  order.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                  'bg-red-100 text-red-800'
-                                }`}>
-                                  {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                                </span>
-                              </td>
-                              <td className="py-2 px-4 text-center">
-                                {order.status === 'pending' && (
-                                  <button
-                                    onClick={() => cancelOrder(order.id)}
-                                    className="text-red-500 hover:text-red-700"
-                                  >
-                                    Cancel
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+              {cart.length === 0 ? (
+                <div className="text-center py-4 text-gray-500">
+                  <p>Your cart is empty</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="md:col-span-2">
-                    <h3 className="text-xl font-bold text-amber-800 mb-4">Our Coffee Selection</h3>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {coffees.map((coffee) => (
-                        <div key={coffee.id} className="bg-white p-4 rounded-lg shadow-md">
-                          <h3 className="text-xl font-bold text-amber-700">{coffee.name}</h3>
-                          <p className="text-gray-600 mb-2">{coffee.description}</p>
-                          <div className="flex justify-between items-center">
-                            <span className="text-amber-800 font-bold">${coffee.price.toFixed(2)}</span>
-                            <button 
-                              onClick={() => addToCart(coffee)}
-                              className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded"
-                            >
-                              Add to Cart
-                            </button>
-                          </div>
+                <div>
+                  <div className="overflow-y-auto max-h-64 mb-4">
+                    {cart.map(item => (
+                      <div key={item.product_id} className="flex justify-between items-center pb-2 mb-2 border-b border-gray-100">
+                        <div>
+                          <div className="font-medium">{item.product_name}</div>
+                          <div className="text-gray-500 text-sm">₹{item.price.toFixed(2)}</div>
                         </div>
-                      ))}
+                        
+                        <div className="flex items-center">
+                          <button 
+                            onClick={() => handleUpdateQuantity(item.product_id, item.quantity - 1)}
+                            className="text-amber-600 w-6 h-6 flex items-center justify-center"
+                          >
+                            -
+                          </button>
+                          <span className="px-2">{item.quantity}</span>
+                          <button 
+                            onClick={() => handleUpdateQuantity(item.product_id, item.quantity + 1)}
+                            className="text-amber-600 w-6 h-6 flex items-center justify-center"
+                          >
+                            +
+                          </button>
+                          
+                          <button 
+                            onClick={() => handleRemoveFromCart(item.product_id)}
+                            className="ml-2 text-red-500"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="mb-4">
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Delivery Location*
+                      </label>
+                      <input 
+                        type="text" 
+                        value={locationInput}
+                        onChange={(e) => setLocationInput(e.target.value)}
+                        placeholder="Enter your delivery address"
+                        className="w-full p-2 border rounded-md"
+                        required
+                      />
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Delivery Notes
+                      </label>
+                      <textarea 
+                        value={deliveryNotes}
+                        onChange={(e) => setDeliveryNotes(e.target.value)}
+                        placeholder="Any special instructions?"
+                        className="w-full p-2 border rounded-md h-20"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Payment Method
+                      </label>
+                      <select 
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="w-full p-2 border rounded-md"
+                      >
+                        <option value="cod">Cash on Delivery</option>
+                        <option value="online">Online Payment</option>
+                        <option value="wallet">1dm Wallet</option>
+                      </select>
                     </div>
                   </div>
                   
-                  <div className="bg-white p-4 rounded-lg shadow-md h-fit">
-                    <h3 className="text-xl font-bold text-amber-800 mb-4">Your Order</h3>
+                  <div className="border-t pt-4">
+                    <div className="flex justify-between mb-2">
+                      <span>Subtotal</span>
+                      <span>₹{getTotalPrice().toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between mb-2">
+                      <span>Delivery Fee</span>
+                      <span>₹50.00</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-lg">
+                      <span>Total</span>
+                      <span>₹{(getTotalPrice() + 50).toFixed(2)}</span>
+                    </div>
                     
-                    {cart.length === 0 ? (
-                      <p className="text-gray-500">Your cart is empty</p>
-                    ) : (
-                      <>
-                        <ul className="divide-y divide-amber-100">
-                          {cart.map((item, index) => (
-                            <li key={index} className="py-2 flex justify-between">
-                              <span>{item.name}</span>
-                              <div className="flex items-center">
-                                <span className="text-amber-800">${item.price.toFixed(2)}</span>
-                                <button 
-                                  onClick={() => removeFromCart(index)}
-                                  className="ml-2 text-red-500 hover:text-red-700"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                        
-                        <div className="mt-4 pt-4 border-t border-amber-100">
-                          <div className="flex justify-between font-bold text-amber-800">
-                            <span>Total:</span>
-                            <span>${getTotalPrice()}</span>
-                          </div>
-                          
-                          <button 
-                            onClick={placeOrder}
-                            disabled={isLoading}
-                            className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2 rounded font-bold mt-4 disabled:opacity-70"
-                          >
-                            {isLoading ? 'Processing...' : 'Place Order'}
-                          </button>
-                        </div>
-                      </>
-                    )}
+                    <button 
+                      onClick={handleSubmitOrder}
+                      disabled={cart.length === 0 || !locationInput || submitting}
+                      className={`w-full ${submitting ? 'bg-amber-400' : 'bg-amber-600'} text-white py-3 rounded-md mt-4 font-medium disabled:opacity-50`}
+                    >
+                      {submitting ? 'Processing...' : 'Place Order'}
+                    </button>
                   </div>
                 </div>
               )}
-            </>
-          )}
-        </main>
-      </div>
-    </>
-  )
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

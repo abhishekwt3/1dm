@@ -1,191 +1,246 @@
-// app/api/order/route.js
+import { PrismaClient } from '@prisma/client';
 import { NextResponse } from 'next/server';
 
-// Mock database for orders
-// In a real app, this would be a connection to an actual database
-let orders = [];
-
-// Helper function to verify authentication
-// In a real app, this would validate tokens or session cookies
-function isAuthenticated(request) {
-  // Get authorization header or cookies
-  const authHeader = request.headers.get('authorization');
-  
-  // This is a very simple mock authentication
-  // Real implementation would verify JWT tokens or session cookies
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return false;
-  }
-  
-  // Mock token validation - in production, you'd verify JWT tokens
-  return true;
-}
-
-// GET handler to fetch orders (for user history)
+// GET endpoint to fetch orders with optional username query parameter
 export async function GET(request) {
-  // Check authentication
-  if (!isAuthenticated(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  
-  // Get query parameters for filtering
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
-  
-  let userOrders = [...orders];
-  
-  // Filter by user if userId is provided
-  if (userId) {
-    userOrders = userOrders.filter(order => order.userId === userId);
-  }
-  
-  return NextResponse.json({ orders: userOrders });
-}
-
-// POST handler to create new orders
-export async function POST(request) {
-  // Check authentication
-  if (!isAuthenticated(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const prisma = new PrismaClient({
+    log: ['query', 'error'],
+  });
   
   try {
-    // Parse the request body
-    const body = await request.json();
-    
-    // Validate required fields
-    if (!body.userId || !body.items || body.items.length === 0) {
-      return NextResponse.json(
-        { error: 'Invalid order: userId and at least one item are required' }, 
-        { status: 400 }
-      );
-    }
-    
-    // Create new order with a generated ID and timestamp
-    const newOrder = {
-      id: Date.now().toString(), // Simple ID generation
-      userId: body.userId,
-      items: body.items,
-      totalAmount: body.totalAmount,
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
-    
-    // Save order to our mock database
-    orders.push(newOrder);
-    
-    return NextResponse.json({ 
-      message: 'Order created successfully', 
-      order: newOrder 
-    }, { status: 201 });
-    
-  } catch (error) {
-    console.error('Error creating order:', error);
-    return NextResponse.json(
-      { error: 'Failed to process order' }, 
-      { status: 500 }
-    );
-  }
-}
-
-// PATCH handler to update order status
-export async function PATCH(request) {
-  // Check authentication
-  if (!isAuthenticated(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  
-  try {
-    const body = await request.json();
-    
-    // Validate required fields
-    if (!body.orderId || !body.status) {
-      return NextResponse.json(
-        { error: 'Invalid update: orderId and status are required' }, 
-        { status: 400 }
-      );
-    }
-    
-    // Find the order to update
-    const orderIndex = orders.findIndex(order => order.id === body.orderId);
-    
-    if (orderIndex === -1) {
-      return NextResponse.json(
-        { error: 'Order not found' }, 
-        { status: 404 }
-      );
-    }
-    
-    // Update the order status
-    orders[orderIndex].status = body.status;
-    orders[orderIndex].updatedAt = new Date().toISOString();
-    
-    return NextResponse.json({ 
-      message: 'Order updated successfully', 
-      order: orders[orderIndex] 
-    });
-    
-  } catch (error) {
-    console.error('Error updating order:', error);
-    return NextResponse.json(
-      { error: 'Failed to update order' }, 
-      { status: 500 }
-    );
-  }
-}
-
-// DELETE handler to cancel an order
-export async function DELETE(request) {
-  // Check authentication
-  if (!isAuthenticated(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  
-  try {
-    // Get order ID from URL parameters
+    // Get the URL to extract query parameters
     const { searchParams } = new URL(request.url);
-    const orderId = searchParams.get('orderId');
     
-    if (!orderId) {
-      return NextResponse.json(
-        { error: 'Order ID is required' }, 
-        { status: 400 }
-      );
-    }
+    // Extract username from query parameters or use default
+    const userName = searchParams.get('user_name') || "current_user";
     
-    // Find the order to delete/cancel
-    const orderIndex = orders.findIndex(order => order.id === orderId);
+    console.log(`Getting orders for user: ${userName}`);
+    await prisma.$connect();
     
-    if (orderIndex === -1) {
-      return NextResponse.json(
-        { error: 'Order not found' }, 
-        { status: 404 }
-      );
-    }
-    
-    // Only allow cancellation of pending orders
-    if (orders[orderIndex].status !== 'pending') {
-      return NextResponse.json(
-        { error: 'Only pending orders can be cancelled' }, 
-        { status: 400 }
-      );
-    }
-    
-    // Remove the order from our mock database
-    // In a real app, you might just mark it as cancelled instead
-    const cancelledOrder = orders[orderIndex];
-    orders.splice(orderIndex, 1);
-    
-    return NextResponse.json({ 
-      message: 'Order cancelled successfully', 
-      order: cancelledOrder 
+    const orders = await prisma.order.findMany({
+      where: { user_name: userName },
+      include: {
+        order_items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+      orderBy: {
+        order_date: 'desc'
+      }
     });
     
+    console.log(`Found ${orders.length} orders for user ${userName}`);
+    return NextResponse.json(orders);
   } catch (error) {
-    console.error('Error cancelling order:', error);
+    console.error("Orders fetch error:", error);
     return NextResponse.json(
-      { error: 'Failed to cancel order' }, 
+      { error: error.message },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+export async function POST(request) {
+  const prisma = new PrismaClient({
+    log: ['query', 'error', 'info'],
+  });
+  
+  try {
+    const body = await request.json();
+    console.log("Creating order with data:", body);
+    
+    // Extract data from request
+    const { 
+      user_name, 
+      location, 
+      payment_method,
+      delivery_notes,
+      items,
+      total_price
+    } = body;
+    
+    // Validate required fields
+    if (!user_name || !location || !items || items.length === 0) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+    
+    // Check if user exists first - this is critical to avoid foreign key errors
+    const userExists = await prisma.account.findUnique({
+      where: { user_name }
+    });
+    
+    if (!userExists) {
+      console.log(`User ${user_name} does not exist in the database`);
+      
+      // For development purposes, create a test user if it doesn't exist
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Creating test user ${user_name} for development`);
+        
+        try {
+          await prisma.account.create({
+            data: {
+              user_name,
+              email: `${user_name}@example.com`,
+              password: "password123", // This would be hashed in production
+              full_name: user_name,
+              created_at: new Date(),
+              updated_at: new Date()
+            }
+          });
+          console.log(`Test user ${user_name} created successfully`);
+        } catch (createError) {
+          console.error("Failed to create test user:", createError);
+          return NextResponse.json(
+            { error: `User ${user_name} does not exist and could not be created` },
+            { status: 404 }
+          );
+        }
+      } else {
+        return NextResponse.json(
+          { error: `User ${user_name} not found` },
+          { status: 404 }
+        );
+      }
+    }
+    
+    // Check if all products exist and are available
+    for (const item of items) {
+      const product = await prisma.product.findUnique({
+        where: { id: item.product_id }
+      });
+      
+      if (!product) {
+        return NextResponse.json(
+          { error: `Product with ID ${item.product_id} not found` },
+          { status: 404 }
+        );
+      }
+      
+      if (!product.available) {
+        return NextResponse.json(
+          { error: `Product ${product.product_name} is currently unavailable` },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Calculate total price if not provided
+    let price = total_price;
+    if (!price) {
+      price = items.reduce((total, item) => total + (item.price * item.quantity), 0);
+    }
+    
+    // Create the order using a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the order first
+      const order = await tx.order.create({
+        data: {
+          user_name,
+          location,
+          price,
+          payment_method,
+          delivery_notes,
+          status: 'PENDING',
+        }
+      });
+      
+      // Create order items
+      const orderItemPromises = items.map(item => 
+        tx.orderItem.create({
+          data: {
+            order_id: order.id,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price: item.price,
+          }
+        })
+      );
+      
+      const orderItems = await Promise.all(orderItemPromises);
+      
+      return { order, orderItems };
+    });
+    
+    console.log("Order created successfully:", result.order.id);
+    return NextResponse.json({ 
+      message: 'Order created successfully',
+      order: result.order,
+      order_items: result.orderItems 
+    }, { status: 201 });
+  } catch (error) {
+    console.error("Order creation error:", error);
+    return NextResponse.json(
+      { 
+        error: 'Failed to create order',
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
+      { status: 500 }
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+// PATCH endpoint to update order status
+export async function PATCH(request) {
+  const prisma = new PrismaClient({
+    log: ['query', 'error'],
+  });
+  
+  try {
+    const body = await request.json();
+    console.log("Updating order with data:", body);
+    
+    // Extract data from request
+    const { order_id, status } = body;
+    
+    // Validate required fields
+    if (!order_id || !status) {
+      return NextResponse.json(
+        { error: "Order ID and status are required" },
+        { status: 400 }
+      );
+    }
+    
+    // Validate status is a valid enum value
+    const validStatuses = ['PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED'];
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json(
+        { error: `Invalid status: ${status}. Must be one of: ${validStatuses.join(', ')}` },
+        { status: 400 }
+      );
+    }
+    
+    // Update the order
+    const updatedOrder = await prisma.order.update({
+      where: { id: order_id },
+      data: { status },
+    });
+    
+    console.log(`Order ${order_id} status updated to ${status}`);
+    return NextResponse.json({ 
+      message: 'Order status updated successfully',
+      order: updatedOrder 
+    });
+  } catch (error) {
+    console.error("Order update error:", error);
+    return NextResponse.json(
+      { 
+        error: 'Failed to update order',
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
+      { status: 500 }
+    );
+  } finally {
+    await prisma.$disconnect();
   }
 }
