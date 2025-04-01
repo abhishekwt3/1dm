@@ -62,6 +62,8 @@ model Order {
   status            OrderStatus    @default(PENDING)
   payment_method    String?
   delivery_notes    String?
+  payment_status      String?       @default("PENDING") // "PENDING", "PAID", "FAILED"
+  payment_id          String?       // Reference to payment
   created_at        DateTime       @default(now())
   updated_at        DateTime       @updatedAt
   
@@ -107,6 +109,8 @@ model Subscription {
   subscription_type SubscriptionType
   status            SubscriptionStatus @default(ACTIVE)
   payment_method    String?
+  payment_status    String?       @default("PENDING") // "PENDING", "PAID", "FAILED"
+  payment_id        String?       // Reference to payment
   created_at        DateTime           @default(now())
   updated_at        DateTime           @updatedAt
   
@@ -198,5 +202,29 @@ model Equipment {
   subscriptions     Subscription[]
   
   @@index([name])
+}
+
+model Payment {
+  id                  String        @id @default(uuid())
+  razorpay_order_id   String        @unique
+  razorpay_payment_id String?       
+  razorpay_signature  String?
+  amount              Float
+  currency            String        @default("INR")
+  payment_for         String        // "SUBSCRIPTION" or "ORDER"
+  status              PaymentStatus @default(CREATED)
+  metadata            Json?         // Store additional data like subscription_id or order_id
+  created_at          DateTime      @default(now())
+  updated_at          DateTime      @updatedAt
+  
+  @@index([razorpay_order_id])
+}
+
+enum PaymentStatus {
+  CREATED
+  ATTEMPTED
+  FAILED
+  COMPLETED
+  REFUNDED
 }
 
