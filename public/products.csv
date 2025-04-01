@@ -1,0 +1,11 @@
+id,product_name,price,description,image,category,available,created_at,updated_at
+1,Classic Latte,387.00,"A smooth blend of espresso and steamed milk, topped with a light foam.","https://images.unsplash.com/photo-1517231924477-6760e57d5d09",Coffee,Yes,"2025-04-01 07:02:00","2025-04-01 07:02:00"
+2,Cappuccino,408.50,"Equal parts espresso, steamed milk, and froth for a bold, creamy taste.","https://images.pexels.com/photos/312420/pexels-photo-312420.jpeg",Coffee,Yes,"2025-04-01 07:02:00","2025-04-01 07:02:00"
+3,Pumpkin Spice Latte,451.50,"Espresso, steamed milk, pumpkin puree, and warm spices, topped with whip.","https://images.unsplash.com/photo-1502810278662-4e0e4629cf26",Seasonal,Yes,"2025-04-01 07:02:00","2025-04-01 07:02:00"
+4,Mocha,430.00,"Rich espresso with steamed milk and chocolate syrup, finished with foam.","https://images.pexels.com/photos/2074122/pexels-photo-2074122.jpeg",Coffee,Yes,"2025-04-01 07:02:00","2025-04-01 07:02:00"
+5,Caramel Macchiato,473.00,"Espresso with vanilla syrup, steamed milk, and caramel drizzle on top.","https://images.unsplash.com/photo-1596076982016-01c6e60b8d38",Coffee,Yes,"2025-04-01 07:02:00","2025-04-01 07:02:00"
+6,Espresso,258.00,"A single shot of strong, concentrated coffee, served straight.","https://images.pexels.com/photos/374885/pexels-photo-374885.jpeg",Coffee,Yes,"2025-04-01 07:02:00","2025-04-01 07:02:00"
+7,Iced Latte,408.50,"Chilled espresso mixed with cold milk, served over ice.","https://images.unsplash.com/photo-1562447575-85e4c796ee5b",Coffee,Yes,"2025-04-01 07:02:00","2025-04-01 07:02:00"
+8,Vanilla Latte,430.00,"Espresso and steamed milk with a hint of vanilla syrup, lightly foamed.","https://images.pexels.com/photos/209337/pexels-photo-209337.jpeg",Coffee,Yes,"2025-04-01 07:02:00","2025-04-01 07:02:00"
+9,Flat White,417.10,"Double espresso with velvety steamed milk, minimal foam for a bold flavor.","https://images.unsplash.com/photo-1546431538-d4b9e1b1b5e7",Coffee,Yes,"2025-04-01 07:02:00","2025-04-01 07:02:00"
+10,Cinnamon Dolce Latte,460.10,"Espresso, steamed milk, cinnamon syrup, topped with whipped cream and spice.","https://images.pexels.com/photos/296888/pexels-photo-296888.jpeg",Seasonal,Yes,"2025-04-01 07:02:00","2025-04-01 07:02:00"

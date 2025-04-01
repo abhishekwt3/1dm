@@ -1,29 +1,33 @@
-'use client';
-
-export default function ProductCard({ product, onAddToCart, currencySymbol = '₹' }) {
+// components/ProductCard.jsx
+export default function ProductCard({ product, onAddToCart }) {
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      {product.image && (
-        <div className="h-40 bg-gray-200 overflow-hidden">
+    <div className="bg-gray-200 rounded-md overflow-hidden pb-3">
+      <div className="h-32 bg-white border border-gray-200">
+        {product.image ? (
           <img 
             src={product.image} 
             alt={product.product_name} 
             className="w-full h-full object-cover"
           />
-        </div>
-      )}
-      <div className="p-4">
-        <h3 className="font-semibold text-lg">{product.product_name}</h3>
-        <p className="text-gray-500 text-sm mt-1">{product.description}</p>
-        <div className="flex justify-between items-center mt-3">
-          <span className="font-bold">{currencySymbol}{product.price.toFixed(2)}</span>
-          <button 
-            onClick={() => onAddToCart(product)}
-            className="bg-amber-600 text-white px-3 py-1 rounded-full text-sm"
-          >
-            Add
-          </button>
-        </div>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-100">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+        )}
+      </div>
+      <div className="p-2 flex justify-between items-center">
+        <p className="font-medium text-black truncate">{product.product_name}</p>
+        <p className="text-right text-black">Rs {product.price}</p>
+      </div>
+      <div className="px-2">
+        <button 
+          onClick={() => onAddToCart(product)}
+          className="w-full bg-amber-600 text-white py-1 rounded text-sm font-medium"
+        >
+          ADD
+        </button>
       </div>
     </div>
   );
