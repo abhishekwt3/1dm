@@ -68,43 +68,16 @@ export async function POST(request) {
       );
     }
     
-    // Check if user exists first - this is critical to avoid foreign key errors
+    // Check if user exists first
     const userExists = await prisma.account.findUnique({
       where: { user_name }
     });
     
     if (!userExists) {
-      console.log(`User ${user_name} does not exist in the database`);
-      
-      // For development purposes, create a test user if it doesn't exist
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`Creating test user ${user_name} for development`);
-        
-        try {
-          await prisma.account.create({
-            data: {
-              user_name,
-              email: `${user_name}@example.com`,
-              password: "password123", // This would be hashed in production
-              full_name: user_name,
-              created_at: new Date(),
-              updated_at: new Date()
-            }
-          });
-          console.log(`Test user ${user_name} created successfully`);
-        } catch (createError) {
-          console.error("Failed to create test user:", createError);
-          return NextResponse.json(
-            { error: `User ${user_name} does not exist and could not be created` },
-            { status: 404 }
-          );
-        }
-      } else {
-        return NextResponse.json(
-          { error: `User ${user_name} not found` },
-          { status: 404 }
-        );
-      }
+      return NextResponse.json(
+        { error: `User ${user_name} not found` },
+        { status: 404 }
+      );
     }
     
     // Check if equipment exists

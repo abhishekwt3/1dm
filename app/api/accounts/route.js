@@ -1,9 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
-  // In a real app, get the user from the session
-  const userName = "current_user";
+export async function GET(request) {
+  // Extract username from the request headers (added by middleware)
+  const userName = request.headers.get('x-user-name') || "current_user";
   console.log(`API route hit: /api/account - getting data for ${userName}`);
   
   const prisma = new PrismaClient({
@@ -12,65 +12,34 @@ export async function GET() {
   
   try {
     await prisma.$connect();
-    console.log("✅ Database connection successful");
+    console.log("Database connection successful");
     
-    // First check if the account exists
+    // Get the account data
     const account = await prisma.account.findUnique({
       where: { user_name: userName }
     });
     
     if (!account) {
-      console.log(`❌ Account not found for username: ${userName}`);
-      
-      // For development, create a test account if one doesn't exist
-      if (process.env.NODE_ENV === 'development') {
-        console.log("🔧 Creating development test account");
-        
-        try {
-          const newAccount = await prisma.account.create({
-            data: {
-              user_name: userName,
-              email: "test@example.com",
-              password: "password123", // In a real app, this would be hashed
-              full_name: "Test User",
-              member: false,
-              created_at: new Date(),
-              updated_at: new Date()
-            }
-          });
-          
-          console.log("✅ Test account created successfully");
-          return NextResponse.json(newAccount);
-          
-        } catch (createError) {
-          console.error("❌ Failed to create test account:", createError);
-          return NextResponse.json(
-            { error: 'User not found and could not create test account' },
-            { status: 404 }
-          );
-        }
-      }
-      
+      console.log(`Account not found for username: ${userName}`);
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       );
     }
     
-    console.log("✅ Account found:", account.user_name);
+    console.log("Account found:", account.user_name);
     
     // Don't return the password in the response
     const { password, ...safeAccount } = account;
     return NextResponse.json(safeAccount);
     
   } catch (error) {
-    console.error("❌ Database error:", error);
+    console.error("Database error:", error);
     
     return NextResponse.json(
       { 
         error: 'Database error', 
         message: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       },
       { status: 500 }
     );
@@ -80,8 +49,8 @@ export async function GET() {
 }
 
 export async function PUT(request) {
-  // In a real app, get the user from the session
-  const userName = "current_user";
+  // Extract username from the request headers (added by middleware)
+  const userName = request.headers.get('x-user-name') || "current_user";
   console.log(`API route hit: PUT /api/account - updating data for ${userName}`);
   
   const prisma = new PrismaClient({
@@ -90,7 +59,7 @@ export async function PUT(request) {
   
   try {
     const body = await request.json();
-    console.log("📝 Update data received:", body);
+    console.log("Update data received:", body);
     
     // Extract the fields we allow to be updated
     const { full_name, email, phone_number, address } = body;
@@ -101,7 +70,7 @@ export async function PUT(request) {
     });
     
     if (!existingAccount) {
-      console.log(`❌ Cannot update non-existent account: ${userName}`);
+      console.log(`Cannot update non-existent account: ${userName}`);
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -120,14 +89,14 @@ export async function PUT(request) {
       }
     });
     
-    console.log("✅ Account updated successfully");
+    console.log("Account updated successfully");
     
     // Don't return the password in the response
     const { password, ...safeAccount } = updatedAccount;
     return NextResponse.json(safeAccount);
     
   } catch (error) {
-    console.error("❌ Update error:", error);
+    console.error("Update error:", error);
     
     // Check for specific Prisma errors
     if (error.code === 'P2002') {

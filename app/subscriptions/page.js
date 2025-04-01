@@ -44,33 +44,6 @@ export default function Subscriptions() {
       .catch(error => {
         console.error("Failed to fetch equipment:", error);
         setLoading(false);
-        
-        // For development, provide mock data if API fails
-        if (process.env.NODE_ENV === 'development') {
-          const mockEquipment = [
-            {
-              id: '1',
-              name: 'Espresso Machine',
-              description: 'Professional-grade espresso machine for home use',
-              weekly_price: 1200,
-              monthly_price: 4000,
-              deposit_amount: 10000,
-              available: true,
-              image: null
-            },
-            {
-              id: '2',
-              name: 'Coffee Grinder',
-              description: 'Burr grinder for precise coffee grinding',
-              weekly_price: 800,
-              monthly_price: 2500,
-              deposit_amount: 5000,
-              available: true,
-              image: null
-            }
-          ];
-          setEquipment(mockEquipment);
-        }
       });
     
     // Use locations from JSON file
@@ -109,76 +82,74 @@ export default function Subscriptions() {
     });
   };
   
-// Only the handleSubmit function is updated here
-const handleSubmit = async () => {
-  if (!selectedEquipment) return;
-  
-  setSubmitting(true);
-  setSubmitError(null);
-  
-  // Get user info from localStorage
-  let userName = "current_user"; // Default fallback
-  
-  try {
-    const userInfoString = localStorage.getItem('user_info');
-    if (userInfoString) {
-      const userInfo = JSON.parse(userInfoString);
-      if (userInfo.user_name) {
-        userName = userInfo.user_name;
+  const handleSubmit = async () => {
+    if (!selectedEquipment) return;
+    
+    setSubmitting(true);
+    setSubmitError(null);
+    
+    // Get user info from localStorage
+    let userName = "current_user"; // Default fallback
+    
+    try {
+      const userInfoString = localStorage.getItem('user_info');
+      if (userInfoString) {
+        const userInfo = JSON.parse(userInfoString);
+        if (userInfo.user_name) {
+          userName = userInfo.user_name;
+        }
       }
+    } catch (e) {
+      console.error("Error parsing user info:", e);
     }
-  } catch (e) {
-    console.error("Error parsing user info:", e);
-  }
-  
-  const price = formData.subscriptionType === 'WEEKLY' 
-    ? selectedEquipment.weekly_price 
-    : selectedEquipment.monthly_price;
-  
-  const subscriptionData = {
-    user_name: userName,
-    equipment_id: selectedEquipment.id,
-    subscription_type: formData.subscriptionType,
-    pickup_location: formData.pickupLocation,
-    drop_location: formData.dropLocation,
-    deposit: selectedEquipment.deposit_amount,
-    price: price
-    // payment_method removed since it doesn't exist in the schema
+    
+    const price = formData.subscriptionType === 'WEEKLY' 
+      ? selectedEquipment.weekly_price 
+      : selectedEquipment.monthly_price;
+    
+    const subscriptionData = {
+      user_name: userName,
+      equipment_id: selectedEquipment.id,
+      subscription_type: formData.subscriptionType,
+      pickup_location: formData.pickupLocation,
+      drop_location: formData.dropLocation,
+      deposit: selectedEquipment.deposit_amount,
+      price: price
+    };
+
+    console.log("Submitting subscription with data:", subscriptionData);
+
+    try {
+      const response = await fetch('/api/subscriptions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify(subscriptionData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || errorData.error || 'Failed to create subscription');
+      }
+      
+      const data = await response.json();
+      setSubmitSuccess(true);
+      
+      // Reset after 3 seconds
+      setTimeout(() => {
+        setSubmitSuccess(false);
+        setFormOpen(false);
+        setSelectedEquipment(null);
+      }, 3000);
+    } catch (error) {
+      console.error("Subscription error:", error);
+      setSubmitError(error.message || 'Failed to create subscription');
+    } finally {
+      setSubmitting(false);
+    }
   };
-
-  console.log("Submitting subscription with data:", subscriptionData);
-
-  try {
-    const response = await fetch('/api/subscriptions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-      },
-      body: JSON.stringify(subscriptionData)
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || errorData.error || 'Failed to create subscription');
-    }
-    
-    const data = await response.json();
-    setSubmitSuccess(true);
-    
-    // Reset after 3 seconds
-    setTimeout(() => {
-      setSubmitSuccess(false);
-      setFormOpen(false);
-      setSelectedEquipment(null);
-    }, 3000);
-  } catch (error) {
-    console.error("Subscription error:", error);
-    setSubmitError(error.message || 'Failed to create subscription');
-  } finally {
-    setSubmitting(false);
-  }
-};
   
   return (
     <div className="p-4">

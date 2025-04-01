@@ -63,23 +63,6 @@ export default function LoginForm({ onLoginSuccess, switchView }) {
     } catch (error) {
       console.error("Login error:", error);
       setAuthError(error.message || 'Login failed. Please check your credentials.');
-      
-      // For development, auto-login
-      if (process.env.NODE_ENV === 'development') {
-        setAuthSuccess("Development mode: Auto-login successful!");
-        setTimeout(() => {
-          // Mock data for auto-login
-          localStorage.setItem('auth_token', 'dev-token');
-          localStorage.setItem('user_info', JSON.stringify({
-            id: 'dev-id',
-            user_name: 'current_user',
-            full_name: 'Test User',
-            email: 'test@example.com'
-          }));
-          
-          onLoginSuccess();
-        }, 1000);
-      }
     } finally {
       setLoggingIn(false);
     }

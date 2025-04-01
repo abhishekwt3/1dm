@@ -6,7 +6,6 @@ import RegisterForm from './components/RegisterForm';
 import ProfileSection from './components/ProfileSection';
 import OrdersSection from './components/OrdersSection';
 import SubscriptionsSection from './components/SubscriptionsSection';
-import DebugPanel from './components/DebugPanel';
 
 export default function Account() {
   // Authentication state
@@ -21,7 +20,6 @@ export default function Account() {
   const [orders, setOrders] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dbTestResults, setDbTestResults] = useState(null);
   
   // Error states
   const [error, setError] = useState(null);
@@ -29,65 +27,31 @@ export default function Account() {
   useEffect(() => {
     console.log("Account page loading...");
     checkAuthentication();
-    
-    // Run diagnostics in development mode
-    if (process.env.NODE_ENV === 'development') {
-      runDiagnostics();
-    }
   }, []);
   
-  // Diagnostic function for development
-  const runDiagnostics = () => {
-    fetch('/api/account-test')
-      .then(res => res.json())
-      .then(data => {
-        console.log("Account database test results:", data);
-        setDbTestResults(data);
-      })
-      .catch(err => {
-        console.error("Account database test error:", err);
-      });
-  };
-  
-// Updated checkAuthentication function
-const checkAuthentication = () => {
-  const authToken = localStorage.getItem('auth_token');
-  const userInfo = localStorage.getItem('user_info');
-  
-  if (authToken && userInfo) {
-    try {
-      // Parse user info to check if it's valid
-      const userInfoObj = JSON.parse(userInfo);
-      if (!userInfoObj.user_name) {
-        throw new Error("Invalid user information");
+  const checkAuthentication = () => {
+    const authToken = localStorage.getItem('auth_token');
+    const userInfo = localStorage.getItem('user_info');
+    
+    if (authToken && userInfo) {
+      try {
+        // Parse user info to check if it's valid
+        const userInfoObj = JSON.parse(userInfo);
+        if (!userInfoObj.user_name) {
+          throw new Error("Invalid user information");
+        }
+        
+        setIsAuthenticated(true);
+        loadUserData();
+      } catch (e) {
+        console.error("Error with stored authentication:", e);
+        handleLogout(); // Clear invalid auth data
       }
-      
-      setIsAuthenticated(true);
-      loadUserData();
-    } catch (e) {
-      console.error("Error with stored authentication:", e);
-      handleLogout(); // Clear invalid auth data
-    }
-  } else {
-    // Auto-authenticate in development
-    if (process.env.NODE_ENV === 'development') {
-      // Set default demo user for development
-      localStorage.setItem('auth_token', 'dev-token');
-      localStorage.setItem('user_info', JSON.stringify({
-        id: 'dev-id',
-        user_name: 'current_user',
-        full_name: 'Test User',
-        email: 'test@example.com'
-      }));
-      
-      setIsAuthenticated(true);
-      loadUserData();
     } else {
       setIsAuthenticated(false);
       setLoading(false);
     }
-  }
-};
+  };
 
   // Load user data
   const loadUserData = () => {
@@ -95,16 +59,14 @@ const checkAuthentication = () => {
     
     // Try to get user data from localStorage first
     const userInfoString = localStorage.getItem('user_info');
-    if (userInfoString && process.env.NODE_ENV === 'development') {
+    if (userInfoString) {
       try {
         const storedUserData = JSON.parse(userInfoString);
         setUserData(storedUserData);
-        setLoading(false);
         
         // Continue to load related data
         fetchOrders();
         fetchSubscriptions();
-        return;
       } catch (e) {
         console.error("Error parsing stored user data:", e);
       }
@@ -138,18 +100,11 @@ const checkAuthentication = () => {
         console.log("Account data fetched successfully");
         setUserData(data);
         setLoading(false);
-        
-        fetchOrders();
-        fetchSubscriptions();
       })
       .catch(error => {
         console.error("Failed to fetch account:", error);
         setError(error.message || 'Failed to load account data');
         setLoading(false);
-        
-        if (process.env.NODE_ENV === 'development') {
-          mockUserData();
-        }
       });
   };
   
@@ -166,117 +121,52 @@ const checkAuthentication = () => {
       })
       .catch(error => {
         console.error("Failed to fetch orders:", error);
-        
-        if (process.env.NODE_ENV === 'development') {
-          mockOrdersData();
+      });
+  };
+  
+  const fetchSubscriptions = () => {
+    console.log("Fetching subscriptions...");
+    
+    let userName = "current_user";
+    
+    // Try to get username from localStorage
+    try {
+      const userInfoString = localStorage.getItem('user_info');
+      if (userInfoString) {
+        const userInfo = JSON.parse(userInfoString);
+        if (userInfo.user_name) {
+          userName = userInfo.user_name;
         }
-      });
-  };
-  
-  // Updated fetchSubscriptions function
-const fetchSubscriptions = () => {
-  console.log("Fetching subscriptions...");
-  
-  let userName = "current_user";
-  
-  // Try to get username from localStorage
-  try {
-    const userInfoString = localStorage.getItem('user_info');
-    if (userInfoString) {
-      const userInfo = JSON.parse(userInfoString);
-      if (userInfo.user_name) {
-        userName = userInfo.user_name;
       }
+    } catch (e) {
+      console.error("Error parsing user info:", e);
     }
-  } catch (e) {
-    console.error("Error parsing user info:", e);
-  }
-  
-  // Fetch subscriptions with username parameter
-  fetch(`/api/subscriptions?user_name=${encodeURIComponent(userName)}`, {
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-    }
-  })
-    .then(res => res.json())
-    .then(data => {
-      console.log(`Subscriptions fetched for ${userName}: ${data.length}`);
-      
-      // Sort subscriptions to show active ones first
-      const sortedSubscriptions = data.sort((a, b) => {
-        // First sort by status - active first
-        if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1;
-        if (a.status !== 'ACTIVE' && b.status === 'ACTIVE') return 1;
-        
-        // Then sort by date - newest first
-        return new Date(b.start_date) - new Date(a.start_date);
-      });
-      
-      setSubscriptions(sortedSubscriptions);
+    
+    // Fetch subscriptions with username parameter
+    fetch(`/api/subscriptions?user_name=${encodeURIComponent(userName)}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      }
     })
-    .catch(error => {
-      console.error("Failed to fetch subscriptions:", error);
-      
-      // Mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        setSubscriptions([
-          {
-            id: 'sub1',
-            equipment: { name: 'Espresso Machine' },
-            subscription_type: 'MONTHLY',
-            price: 4000,
-            start_date: new Date().toISOString(),
-            end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            pickup_location: 'Downtown Mumbai',
-            status: 'ACTIVE'
-          }
-        ]);
-      }
-    });
-};
-  
-  // Mock data helpers for development
-  const mockUserData = () => {
-    const mockAccount = {
-      user_name: "current_user",
-      email: "user@example.com",
-      full_name: "Test User",
-      phone_number: "555-123-4567",
-      address: "123 Test St, Test City",
-      member: true,
-      profile_image: null
-    };
-    setUserData(mockAccount);
-  };
-  
-  const mockOrdersData = () => {
-    setOrders([
-      {
-        id: 'order1',
-        order_date: new Date().toISOString(),
-        status: 'COMPLETED',
-        location: 'Downtown Mumbai',
-        price: 550,
-        order_items: [
-          { id: 'item1', product: { product_name: 'Espresso' }, quantity: 2 }
-        ]
-      }
-    ]);
-  };
-  
-  const mockSubscriptionsData = () => {
-    setSubscriptions([
-      {
-        id: 'sub1',
-        equipment: { name: 'Espresso Machine' },
-        subscription_type: 'MONTHLY',
-        price: 4000,
-        start_date: new Date().toISOString(),
-        end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        pickup_location: 'Downtown Mumbai',
-        status: 'ACTIVE'
-      }
-    ]);
+      .then(res => res.json())
+      .then(data => {
+        console.log(`Subscriptions fetched for ${userName}: ${data.length}`);
+        
+        // Sort subscriptions to show active ones first
+        const sortedSubscriptions = data.sort((a, b) => {
+          // First sort by status - active first
+          if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1;
+          if (a.status !== 'ACTIVE' && b.status === 'ACTIVE') return 1;
+          
+          // Then sort by date - newest first
+          return new Date(b.start_date) - new Date(a.start_date);
+        });
+        
+        setSubscriptions(sortedSubscriptions);
+      })
+      .catch(error => {
+        console.error("Failed to fetch subscriptions:", error);
+      });
   };
   
   // Logout handler
@@ -359,9 +249,6 @@ const fetchSubscriptions = () => {
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">My Account</h1>
-      
-      {/* Debug panel in development */}
-      {process.env.NODE_ENV === 'development' && <DebugPanel data={dbTestResults} />}
       
       {/* Only show tabs if authenticated */}
       {isAuthenticated && (

@@ -73,23 +73,6 @@ export default function RegisterForm({ onRegisterSuccess, switchView }) {
     } catch (error) {
       console.error("Registration error:", error);
       setAuthError(error.message || 'Registration failed. Please try again.');
-      
-      // For development, auto-register
-      if (process.env.NODE_ENV === 'development') {
-        setAuthSuccess("Development mode: Auto-registration successful!");
-        setTimeout(() => {
-          // Mock data for auto-registration
-          localStorage.setItem('auth_token', 'dev-token');
-          localStorage.setItem('user_info', JSON.stringify({
-            id: 'dev-id',
-            user_name: registerData.user_name || 'current_user',
-            full_name: registerData.full_name || 'Test User',
-            email: registerData.email || 'test@example.com'
-          }));
-          
-          onRegisterSuccess();
-        }, 1000);
-      }
     } finally {
       setRegistering(false);
     }
